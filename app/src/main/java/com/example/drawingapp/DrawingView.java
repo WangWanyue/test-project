@@ -70,7 +70,8 @@ public class DrawingView extends View {
                 return false;
         }
 
-        invalidate();
+        // Use the more efficient invalidation method tied to the render frame
+        postInvalidateOnAnimation();
         return true;
     }
 
