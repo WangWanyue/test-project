@@ -5,6 +5,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.Bitmap;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
@@ -16,6 +17,10 @@ public class DrawingView extends View {
     private List<Path> paths = new ArrayList<>();
     private Path currentPath;
     private Paint drawPaint;
+    
+    // Bitmap caching fields
+    private Bitmap cacheBitmap;
+    private Canvas cacheCanvas;
 
     public DrawingView(Context context) {
         super(context);
@@ -38,10 +43,36 @@ public class DrawingView extends View {
     }
 
     @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+        if (cacheBitmap != null) {
+            cacheBitmap.recycle();
+        }
+        cacheBitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        cacheCanvas = new Canvas(cacheBitmap);
+        redrawCache();
+    }
+
+    // Redraw all completed paths to the cache bitmap
+    private void redrawCache() {
+        if (cacheCanvas != null) {
+            cacheBitmap.eraseColor(Color.TRANSPARENT);
+            for (Path path : paths) {
+                cacheCanvas.drawPath(path, drawPaint);
+            }
+        }
+    }
+
+    @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        for (Path path : paths) {
-            canvas.drawPath(path, drawPaint);
+        // Draw cached bitmap
+        if (cacheBitmap != null) {
+            canvas.drawBitmap(cacheBitmap, 0, 0, null);
+        }
+        // Draw current in-progress path
+        if (currentPath != null) {
+            canvas.drawPath(currentPath, drawPaint);
         }
     }
 
@@ -53,7 +84,6 @@ public class DrawingView extends View {
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
                 currentPath = new Path();
-                paths.add(currentPath);
                 currentPath.moveTo(touchX, touchY);
                 break;
             case MotionEvent.ACTION_MOVE:
@@ -63,7 +93,10 @@ public class DrawingView extends View {
                 break;
             case MotionEvent.ACTION_UP:
                 if (currentPath != null) {
-                    // currentPath.lineTo(touchX, touchY); // Optional: finalize path on ACTION_UP
+                    // Commit the finished path to the cache
+                    cacheCanvas.drawPath(currentPath, drawPaint);
+                    paths.add(currentPath);
+                    currentPath = null;
                 }
                 break;
             default:
