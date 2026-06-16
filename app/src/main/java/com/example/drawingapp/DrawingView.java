@@ -74,6 +74,12 @@ public class DrawingView extends View {
         return true;
     }
 
+    public void clearCanvas() {
+        paths.clear();
+        currentPath = null;
+        invalidate();
+    }
+
     // Getter for testing
     public int getPathsCount() {
         return paths.size();
